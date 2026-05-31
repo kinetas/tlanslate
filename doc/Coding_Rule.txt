@@ -1,0 +1,191 @@
+[Harness Engineering 코딩 규칙]
+Language: C# (.NET 8)
+Framework: WPF
+
+---
+
+# 1. 네이밍 규칙
+
+## 클래스
+- PascalCase 사용
+- 예: TranslationService, OverlayWindow, OCRManager
+
+## 메서드
+- PascalCase 사용
+- 예: StartTranslation(), UpdateOverlay()
+
+## 변수
+- camelCase 사용
+- 예: translatedText, refreshInterval, isRunning
+
+## 상수
+- PascalCase 사용 (C# 스타일 권장)
+- 예: public const int DefaultRefreshInterval = 1000;
+
+## 인터페이스
+- 반드시 I 접두사 사용
+- 예: ITranslator, IOcrProvider, IOverlayRenderer
+
+## 비동기 메서드
+- Async 접미사 필수
+- 예: TranslateAsync(), CaptureScreenAsync(), ProcessOcrAsync()
+- 금지: public Task Translate() — Async 없이 사용 불가
+
+---
+
+# 2. 폴더 구조
+
+Translator/
+├─ Core/
+│   ├─ Interfaces/
+│   ├─ Models/
+│   └─ Services/
+├─ OCR/
+│   ├─ PaddleOCR/
+│   └─ Providers/
+├─ Translation/
+│   ├─ OpenAI/
+│   ├─ DeepL/
+│   └─ Ollama/
+├─ Overlay/
+├─ UI/
+│   ├─ Views/
+│   ├─ ViewModels/
+│   └─ Controls/
+└─ Config/
+
+---
+
+# 3. 아키텍처 규칙
+
+## WPF MVVM 패턴 적용
+- View → ViewModel → Service 방향으로만 의존
+- 코드비하인드(*.xaml.cs)에는 UI 이벤트 연결만 허용
+- OCR / 번역 / 오버레이 로직은 코드비하인드에 작성 금지
+
+## 의존성 규칙
+- 서비스는 반드시 인터페이스를 통해 접근
+- 구현체를 프로젝트 전체에 직접 참조하는 것 금지
+
+좋은 예:
+  ITranslator translator = new OpenAITranslator();
+
+금지:
+  var translator = new OpenAITranslator(); // 전체에 직접 사용
+
+---
+
+# 4. 번역 엔진 규칙
+
+- 새 번역 엔진 추가 시 반드시 ITranslator 인터페이스 구현
+
+인터페이스:
+  public interface ITranslator
+  {
+      Task<string> TranslateAsync(
+          string text,
+          string sourceLanguage,
+          string targetLanguage);
+  }
+
+구현체:
+  public class OpenAITranslator : ITranslator
+  public class DeepLTranslator : ITranslator
+  public class OllamaTranslator : ITranslator
+
+---
+
+# 5. 모델 규칙
+
+- DTO는 최대한 단순하게 유지
+
+예:
+  public class OCRResult
+  {
+      public string Text { get; set; } = "";
+      public int X { get; set; }
+      public int Y { get; set; }
+      public int Width { get; set; }
+      public int Height { get; set; }
+  }
+
+---
+
+# 6. 로깅 규칙
+
+- Console.WriteLine 남발 금지
+- .NET ILogger<T> 사용
+
+좋은 예:
+  _logger.LogInformation("OCR started");
+  _logger.LogError(ex, "Translation failed");
+
+금지:
+  Console.WriteLine("OCR started");
+
+- API Key 및 민감 정보 로그 기록 절대 금지
+
+금지:
+  _logger.LogInformation($"API Key = {apiKey}");
+
+좋은 예:
+  _logger.LogInformation("OpenAI API configured");
+
+---
+
+# 7. 설정 관리 규칙
+
+- 하드코딩 금지
+- 설정값은 반드시 설정 파일(settings.json 또는 AppSettings)에서 읽기
+
+금지:
+  var interval = 1000;
+
+좋은 예:
+  var interval = settings.RefreshInterval;
+
+설정 파일 예시:
+  {
+    "refreshInterval": 1000,
+    "translator": "OpenAI",
+    "fontSize": 18
+  }
+
+---
+
+# 8. 예외 처리 규칙
+
+- 빈 catch 블록 절대 금지
+
+금지:
+  catch { }
+
+좋은 예:
+  catch (Exception ex)
+  {
+      _logger.LogError(ex, "OCR failed");
+  }
+
+---
+
+# 9. 보안 규칙
+
+- API Key는 Windows DPAPI(ProtectedData.Protect)로 암호화 저장
+- API Key 평문 저장 금지
+- 외부 API 통신은 HTTPS 강제 (HTTP 금지)
+- 화면 캡처 이미지 디스크 저장 금지 (메모리에서만 처리 후 즉시 폐기)
+- OCR 원문 텍스트 저장 금지
+- 설정 파일 위치: AppData\Roaming\
+
+---
+
+# 10. 금지 사항 요약
+
+- 하드코딩 금지
+- Console.WriteLine 남발 금지
+- 빈 catch 블록 금지
+- 인터페이스 없이 구현체 직접 참조 금지
+- 코드비하인드에 비즈니스 로직 작성 금지
+- Async 접미사 없는 비동기 메서드 금지
+- API Key 평문 저장 및 로그 기록 금지
+- HTTP 통신 금지 (HTTPS만 허용)

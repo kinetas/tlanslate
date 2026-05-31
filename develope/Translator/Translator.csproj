@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>Translator</RootNamespace>
+    <AssemblyName>Translator</AssemblyName>
+    <Platforms>x64</Platforms>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- NuGet 패키지 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.1.0" />
+  </ItemGroup>
+
+  <!-- 프로젝트 참조 -->
+  <ItemGroup>
+    <ProjectReference Include="Core\Core.csproj" />
+    <ProjectReference Include="Config\Config.csproj" />
+    <ProjectReference Include="OCR\OCR.csproj" />
+    <ProjectReference Include="Translation\Translation.csproj" />
+    <ProjectReference Include="Overlay\Overlay.csproj" />
+    <ProjectReference Include="UI\UI.csproj" />
+  </ItemGroup>
+
+  <!-- 리소스 -->
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" Condition="Exists('Resources\app.ico')" />
+  </ItemGroup>
+
+</Project>

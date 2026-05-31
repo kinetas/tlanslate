@@ -1,0 +1,60 @@
+<Window x:Class="Translator.UI.RegionSelectorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Translator.UI"
+        mc:Ignorable="d"
+        Title="영역 선택"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="#7F000000"
+        WindowState="Maximized"
+        Topmost="True"
+        Cursor="Cross"
+        d:DataContext="{d:DesignInstance Type=vm:RegionSelectorViewModel, IsDesignTimeCreatable=False}">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+    </Window.InputBindings>
+
+    <Grid>
+        <!-- 안내 텍스트 -->
+        <TextBlock Text="드래그하여 번역할 영역을 선택하세요. ESC로 취소합니다."
+                   Foreground="White"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Top"
+                   Margin="0,24,0,0"
+                   IsHitTestVisible="False" />
+
+        <!-- 선택 중인 Rectangle 표시 -->
+        <Canvas x:Name="SelectionCanvas">
+            <Rectangle x:Name="SelectionRectangle"
+                       Canvas.Left="{Binding SelectionLeft}"
+                       Canvas.Top="{Binding SelectionTop}"
+                       Width="{Binding SelectionWidth}"
+                       Height="{Binding SelectionHeight}"
+                       Stroke="#FF00CFFF"
+                       StrokeThickness="2"
+                       Fill="#3300CFFF"
+                       Visibility="{Binding IsSelecting, Converter={StaticResource BoolToVisibilityConverter}}"
+                       IsHitTestVisible="False" />
+        </Canvas>
+
+        <!-- 좌표 표시 레이블 -->
+        <Border Background="#CC000000"
+                CornerRadius="4"
+                Padding="8,4"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="16,0,0,16"
+                Visibility="{Binding IsSelecting, Converter={StaticResource BoolToVisibilityConverter}}"
+                IsHitTestVisible="False">
+            <TextBlock Foreground="White"
+                       FontSize="12"
+                       Text="{Binding CoordinateDisplayText}" />
+        </Border>
+    </Grid>
+</Window>
