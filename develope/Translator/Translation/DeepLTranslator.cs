@@ -123,6 +123,122 @@ public sealed class DeepLTranslator : ITranslator, IDisposable
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> TranslateBatchAsync(
+        IReadOnlyList<string> texts,
+        string targetLanguage,
+        CancellationToken cancellationToken = default)
+    {
+        if (texts is null || texts.Count == 0)
+            return Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+            throw new ArgumentException("목표 언어 코드가 비어 있습니다.", nameof(targetLanguage));
+
+        // DeepL API는 단일 요청에 여러 text 파라미터를 지원하므로 50개씩 청크로 처리
+        const int chunkSize = 50;
+        var results = new string[texts.Count];
+
+        for (int offset = 0; offset < texts.Count; offset += chunkSize)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var chunk = texts.Skip(offset).Take(chunkSize).ToList();
+            var chunkResults = await TranslateBatchChunkAsync(chunk, targetLanguage, cancellationToken)
+                .ConfigureAwait(false);
+
+            for (int i = 0; i < chunkResults.Length; i++)
+                results[offset + i] = chunkResults[i];
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// DeepL API의 다중 text 파라미터 기능을 사용해 청크를 일괄 번역합니다.
+    /// </summary>
+    private async Task<string[]> TranslateBatchChunkAsync(
+        IReadOnlyList<string> chunk,
+        string targetLanguage,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _settingsManager.LoadAsync().ConfigureAwait(false);
+        var deepLSettings = settings.TranslationApi.DeepL;
+
+        EnforceHttpsBaseUrl(deepLSettings.BaseUrl);
+
+        var apiKey = _settingsManager.DecryptApiKey(settings.TranslationApi.EncryptedApiKey);
+        var requestUrl = $"{deepLSettings.BaseUrl.TrimEnd('/')}{TranslatePath}";
+        var normalizedTargetLang = NormalizeLanguageCode(targetLanguage);
+
+        // DeepL는 같은 키 여러 번 사용하는 form-urlencoded 방식으로 다수 텍스트 전송
+        var formItems = chunk
+            .Select(t => new KeyValuePair<string, string>("text", t))
+            .Append(new KeyValuePair<string, string>("target_lang", normalizedTargetLang))
+            .ToList();
+
+        var formContent = new FormUrlEncodedContent(formItems);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("DeepL-Auth-Key", apiKey);
+        request.Content = formContent;
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "DeepL 배치 번역 네트워크 오류");
+            throw;
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("DeepL 배치 번역 API 오류: StatusCode={StatusCode}", (int)response.StatusCode);
+            throw new HttpRequestException(
+                $"DeepL API 오류: HTTP {(int)response.StatusCode}", null, response.StatusCode);
+        }
+
+        return ParseBatchTranslationResponse(responseJson, chunk);
+    }
+
+    /// <summary>
+    /// DeepL API 배치 번역 응답에서 순서대로 번역 텍스트를 추출합니다.
+    /// 파싱 실패 항목은 원문으로 대체합니다.
+    /// </summary>
+    private string[] ParseBatchTranslationResponse(string responseJson, IReadOnlyList<string> originalTexts)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(responseJson);
+            var translations = doc.RootElement.GetProperty("translations");
+            var results = new string[originalTexts.Count];
+
+            for (int i = 0; i < originalTexts.Count; i++)
+            {
+                if (i < translations.GetArrayLength())
+                {
+                    var translatedText = translations[i].GetProperty("text").GetString();
+                    results[i] = string.IsNullOrEmpty(translatedText) ? originalTexts[i] : translatedText.Trim();
+                }
+                else
+                {
+                    results[i] = originalTexts[i];
+                }
+            }
+
+            return results;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "DeepL 배치 응답 JSON 파싱 실패");
+            throw new InvalidOperationException("DeepL 배치 응답 파싱 중 오류가 발생했습니다.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<IReadOnlyList<string>> GetSupportedLanguagesAsync(
         CancellationToken cancellationToken = default)
     {

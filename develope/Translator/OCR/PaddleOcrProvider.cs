@@ -108,6 +108,38 @@ public sealed class PaddleOcrProvider : IOcrProvider, IDisposable
     }
 
     /// <inheritdoc/>
+    public async Task<OCRResult[]> RecognizeBlocksAsync(
+        Region region,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(region);
+
+        if (region.IsEmpty)
+            throw new ArgumentException("인식 영역이 비어 있습니다.", nameof(region));
+
+        using var bitmap = await _captureService
+            .CaptureRegionAsync(region, cancellationToken)
+            .ConfigureAwait(false);
+
+        var blocks = await RecognizeBitmapAsync(bitmap, cancellationToken).ConfigureAwait(false);
+
+        // 각 블록의 좌표를 절대 좌표(화면 기준)로 변환 (region offset 더하기)
+        var absoluteBlocks = blocks.Select(b => b with
+        {
+            Region = new Region(
+                b.Region.X + region.X,
+                b.Region.Y + region.Y,
+                b.Region.Width,
+                b.Region.Height)
+        }).ToArray();
+
+        _logger.LogDebug("RecognizeBlocksAsync 완료: 블록 수={Count}, 영역=({X},{Y},{W},{H})",
+            absoluteBlocks.Length, region.X, region.Y, region.Width, region.Height);
+
+        return absoluteBlocks;
+    }
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<OCRResult>> RecognizeAllAsync(
         CancellationToken cancellationToken = default)
     {

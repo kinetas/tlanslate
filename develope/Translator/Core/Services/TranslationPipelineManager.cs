@@ -54,7 +54,7 @@ public sealed class TranslationPipelineManager : IDisposable
     // ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 단일 영역에 대해 OCR → 변경감지 → 캐시 조회 → 번역 → 오버레이 렌더링 파이프라인을 실행합니다.
+    /// 단일 영역에 대해 블록 단위 OCR → 변경감지 → 캐시 확인 → 배치 번역 → 각 블록 위치에 오버레이 렌더링.
     /// </summary>
     /// <param name="region">처리할 화면 영역</param>
     /// <param name="cancellationToken">취소 토큰</param>
@@ -69,34 +69,101 @@ public sealed class TranslationPipelineManager : IDisposable
             return;
         }
 
-        _logger.LogDebug("파이프라인 시작. Region=({X},{Y},{W},{H})",
+        _logger.LogDebug("블록 단위 파이프라인 시작. Region=({X},{Y},{W},{H})",
             region.X, region.Y, region.Width, region.Height);
 
-        // 1단계: OCR + 텍스트 변경 감지
-        var changedResults = await _ocrManager
-            .RecognizeChangedTextAsync(region, cancellationToken)
+        // 1단계: 블록 단위 OCR + 변경 감지
+        var changedBlocks = await _ocrManager
+            .RecognizeChangedBlocksAsync(region, cancellationToken)
             .ConfigureAwait(false);
 
-        if (changedResults.Length == 0)
+        if (changedBlocks.Length == 0)
         {
-            _logger.LogDebug("텍스트 변경 없음. 파이프라인 조기 종료.");
+            _logger.LogDebug("블록 텍스트 변경 없음. 파이프라인 조기 종료.");
             return;
         }
 
-        // 2단계: 변경된 각 OCR 결과에 대해 캐시 확인 → 번역 → 수집
-        var renderItems = new List<(OCRResult Source, string Translation)>(changedResults.Length);
+        // 2단계: 캐시 분리 (캐시 히트 / 번역 필요)
+        var targetLanguage = _settings.TranslationApi.TargetLanguage;
+        var translations = new string?[changedBlocks.Length];
 
-        foreach (var ocrResult in changedResults)
+        var toTranslateIndices = new List<int>(changedBlocks.Length);
+
+        for (int i = 0; i < changedBlocks.Length; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var translation = await ResolveTranslationAsync(ocrResult, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (translation is not null)
+            var text = changedBlocks[i].Text;
+            if (string.IsNullOrWhiteSpace(text))
             {
-                renderItems.Add((ocrResult, translation));
+                translations[i] = null;
+                continue;
             }
+
+            var cacheKey = BuildCacheKey(text, targetLanguage);
+            var cached = await _cacheService.GetAsync<string>(cacheKey).ConfigureAwait(false);
+
+            if (cached is not null)
+            {
+                translations[i] = cached;
+                _logger.LogDebug("배치 파이프라인 캐시 히트. Key={Key}", cacheKey);
+            }
+            else
+            {
+                toTranslateIndices.Add(i);
+            }
+        }
+
+        // 3단계: 캐시 미스 항목 배치 번역
+        if (toTranslateIndices.Count > 0)
+        {
+            await EnforceRateLimitAsync(cancellationToken).ConfigureAwait(false);
+
+            var textsToTranslate = toTranslateIndices
+                .Select(idx => changedBlocks[idx].Text)
+                .ToList();
+
+            IReadOnlyList<string> batchResults;
+            try
+            {
+                batchResults = await _translator
+                    .TranslateBatchAsync(textsToTranslate, targetLanguage, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "배치 번역 API 호출 실패. 텍스트 수={Count}", textsToTranslate.Count);
+                return;
+            }
+
+            var expiration = TimeSpan.FromMinutes(_settings.General.CacheExpirationMinutes);
+
+            for (int i = 0; i < toTranslateIndices.Count; i++)
+            {
+                var blockIdx = toTranslateIndices[i];
+                var translated = batchResults[i];
+
+                if (!string.IsNullOrWhiteSpace(translated))
+                {
+                    translations[blockIdx] = translated;
+                    var cacheKey = BuildCacheKey(changedBlocks[blockIdx].Text, targetLanguage);
+                    await _cacheService.SetAsync(cacheKey, translated, expiration).ConfigureAwait(false);
+                }
+            }
+        }
+
+        // 4단계: 각 블록 위치에 번역 오버레이 렌더링
+        var renderItems = new List<(OCRResult Source, string Translation)>(changedBlocks.Length);
+
+        for (int i = 0; i < changedBlocks.Length; i++)
+        {
+            var translatedText = translations[i];
+            if (!string.IsNullOrWhiteSpace(translatedText))
+                renderItems.Add((changedBlocks[i], translatedText));
         }
 
         if (renderItems.Count == 0)
@@ -105,14 +172,13 @@ public sealed class TranslationPipelineManager : IDisposable
             return;
         }
 
-        // 3단계: 오버레이 렌더링
         _overlayRenderer.RenderTranslations(renderItems);
 
-        _logger.LogInformation("파이프라인 완료. 렌더링된 항목={Count}", renderItems.Count);
+        _logger.LogInformation("블록 단위 파이프라인 완료. 렌더링된 항목={Count}", renderItems.Count);
     }
 
     /// <summary>
-    /// 여러 영역을 순차적으로 처리합니다.
+    /// 여러 영역을 순차적으로 처리합니다. 각 영역에서 블록 단위 OCR과 배치 번역을 수행합니다.
     /// </summary>
     /// <param name="regions">처리할 화면 영역 목록</param>
     /// <param name="cancellationToken">취소 토큰</param>
@@ -130,39 +196,15 @@ public sealed class TranslationPipelineManager : IDisposable
             return;
         }
 
-        _logger.LogDebug("다중 영역 파이프라인 시작. Count={Count}", regionList.Count);
+        _logger.LogDebug("다중 영역 블록 파이프라인 시작. Count={Count}", regionList.Count);
 
-        // 여러 영역의 OCR을 한 번에 처리
-        var allChanged = await _ocrManager
-            .RecognizeMultipleRegionsAsync(regionList, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (allChanged.Count == 0)
-        {
-            _logger.LogDebug("모든 영역에서 텍스트 변경 없음. 파이프라인 종료.");
-            return;
-        }
-
-        var renderItems = new List<(OCRResult Source, string Translation)>(allChanged.Count);
-
-        foreach (var ocrResult in allChanged)
+        foreach (var region in regionList)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var translation = await ResolveTranslationAsync(ocrResult, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (translation is not null)
-            {
-                renderItems.Add((ocrResult, translation));
-            }
+            await ProcessRegionAsync(region, cancellationToken).ConfigureAwait(false);
         }
 
-        if (renderItems.Count > 0)
-        {
-            _overlayRenderer.RenderTranslations(renderItems);
-            _logger.LogInformation("다중 영역 파이프라인 완료. 렌더링={Count}", renderItems.Count);
-        }
+        _logger.LogDebug("다중 영역 블록 파이프라인 완료.");
     }
 
     /// <summary>

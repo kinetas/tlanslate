@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Translator.Core.Interfaces;
 using Translator.Core.Models;
@@ -19,6 +20,10 @@ public sealed class OCRManager : IDisposable
     // 영역별 이전 OCR 결과 (텍스트 변경 감지용)
     private readonly Dictionary<string, string> _previousTextByRegion = new();
     private readonly SemaphoreSlim _stateLock = new(1, 1);
+
+    // 블록 단위 변경 감지용: key=영역 식별자, value=이전 블록 텍스트 배열
+    private readonly ConcurrentDictionary<string, string[]> _previousBlockTexts = new();
+
     private bool _disposed;
 
     public OCRManager(
@@ -155,6 +160,62 @@ public sealed class OCRManager : IDisposable
     }
 
     /// <summary>
+    /// 지정된 화면 영역의 텍스트 블록 단위 변경 여부를 감지하여 변경된 블록만 반환합니다.
+    /// 이전 블록 목록과 비교하여 텍스트가 동일하면 빈 배열을 반환합니다.
+    /// 신뢰도 임계값 미달 블록은 제외됩니다.
+    /// </summary>
+    /// <param name="region">인식할 화면 영역</param>
+    /// <param name="cancellationToken">취소 토큰</param>
+    /// <returns>변경된 OCRResult 블록 배열. 변경 없으면 빈 배열.</returns>
+    public async Task<OCRResult[]> RecognizeChangedBlocksAsync(
+        Region region,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(region);
+
+        if (region.IsEmpty)
+        {
+            _logger.LogWarning("빈 영역 블록 인식 요청이 무시됩니다.");
+            return Array.Empty<OCRResult>();
+        }
+
+        _logger.LogDebug("블록 단위 OCR 시작: X={X}, Y={Y}, W={W}, H={H}",
+            region.X, region.Y, region.Width, region.Height);
+
+        var blocks = await _ocrProvider
+            .RecognizeBlocksAsync(region, cancellationToken)
+            .ConfigureAwait(false);
+
+        // 신뢰도 임계값 필터링
+        blocks = blocks
+            .Where(b => b.Confidence >= _settings.Ocr.MinConfidenceThreshold)
+            .ToArray();
+
+        if (blocks.Length == 0)
+        {
+            _logger.LogDebug("신뢰도 임계값 필터링 후 블록 없음.");
+            return Array.Empty<OCRResult>();
+        }
+
+        var regionKey = GetRegionKey(region);
+        var currentTexts = blocks.Select(b => b.Text).ToArray();
+
+        if (_previousBlockTexts.TryGetValue(regionKey, out var previousTexts)
+            && previousTexts.SequenceEqual(currentTexts, StringComparer.Ordinal))
+        {
+            _logger.LogDebug("블록 텍스트 변경 없음: 영역={RegionKey}", regionKey);
+            return Array.Empty<OCRResult>();
+        }
+
+        _previousBlockTexts[regionKey] = currentTexts;
+
+        _logger.LogDebug("블록 텍스트 변경 감지: 영역={RegionKey}, 블록 수={Count}",
+            regionKey, blocks.Length);
+
+        return blocks;
+    }
+
+    /// <summary>
     /// 특정 영역의 이전 텍스트 상태를 초기화합니다.
     /// </summary>
     /// <param name="region">초기화할 영역</param>
@@ -168,6 +229,7 @@ public sealed class OCRManager : IDisposable
         try
         {
             _previousTextByRegion.Remove(regionKey);
+            _previousBlockTexts.TryRemove(regionKey, out _);
             _logger.LogDebug("영역 상태 초기화: {RegionKey}", regionKey);
         }
         finally
@@ -185,6 +247,7 @@ public sealed class OCRManager : IDisposable
         try
         {
             _previousTextByRegion.Clear();
+            _previousBlockTexts.Clear();
             _logger.LogInformation("모든 영역 상태 초기화 완료.");
         }
         finally

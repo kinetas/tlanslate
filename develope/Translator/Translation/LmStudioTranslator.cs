@@ -129,6 +129,145 @@ public sealed class LmStudioTranslator : ITranslator, IDisposable
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> TranslateBatchAsync(
+        IReadOnlyList<string> texts,
+        string targetLanguage,
+        CancellationToken cancellationToken = default)
+    {
+        if (texts is null || texts.Count == 0)
+            return Array.Empty<string>();
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+            throw new ArgumentException("목표 언어 코드가 비어 있습니다.", nameof(targetLanguage));
+
+        const int chunkSize = 50;
+        var results = new string[texts.Count];
+
+        for (int offset = 0; offset < texts.Count; offset += chunkSize)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var chunk = texts.Skip(offset).Take(chunkSize).ToList();
+            var chunkResults = await TranslateBatchChunkAsync(chunk, targetLanguage, offset, cancellationToken)
+                .ConfigureAwait(false);
+
+            for (int i = 0; i < chunkResults.Length; i++)
+                results[offset + i] = chunkResults[i];
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// 최대 50개의 텍스트 청크를 번호|||텍스트 형식으로 일괄 번역합니다.
+    /// </summary>
+    private async Task<string[]> TranslateBatchChunkAsync(
+        IReadOnlyList<string> chunk,
+        string targetLanguage,
+        int globalOffset,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _settingsManager.LoadAsync().ConfigureAwait(false);
+        var lmStudioSettings = settings.TranslationApi.LmStudio;
+
+        ValidateBaseUrl(lmStudioSettings.BaseUrl);
+
+        var modelId = lmStudioSettings.ModelId;
+        var requestUrl = $"{lmStudioSettings.BaseUrl.TrimEnd('/')}{ChatCompletionsPath}";
+
+        var userContent = string.Join("\n", chunk.Select((t, i) => $"{i + 1}|||{t}"));
+
+        var requestBody = new
+        {
+            model = modelId,
+            messages = new[]
+            {
+                new
+                {
+                    role = "system",
+                    content = $"You are a professional translator. Translate each numbered text into {targetLanguage}. " +
+                              "Respond with the same number of lines. Each line must follow the format: number|||translated text. " +
+                              "Do not add any explanation or extra content."
+                },
+                new
+                {
+                    role = "user",
+                    content = userContent
+                }
+            },
+            temperature = 0.1
+        };
+
+        var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+        if (!string.IsNullOrEmpty(settings.TranslationApi.EncryptedApiKey))
+        {
+            try
+            {
+                var apiKey = _settingsManager.DecryptApiKey(settings.TranslationApi.EncryptedApiKey);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "LMStudio API 키 복호화 실패. API 키 없이 배치 요청을 진행합니다.");
+            }
+        }
+        request.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "LMStudio 배치 번역 네트워크 오류");
+            throw;
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("LMStudio 배치 번역 API 오류: StatusCode={StatusCode}", (int)response.StatusCode);
+            throw new HttpRequestException(
+                $"LMStudio API 오류: HTTP {(int)response.StatusCode}", null, response.StatusCode);
+        }
+
+        var rawContent = ParseTranslatedText(responseJson);
+        return ParseBatchResponse(rawContent, chunk);
+    }
+
+    /// <summary>
+    /// "번호|||번역텍스트" 형식의 응답을 파싱합니다. 파싱 실패 항목은 원문으로 대체합니다.
+    /// </summary>
+    private static string[] ParseBatchResponse(string rawContent, IReadOnlyList<string> originalTexts)
+    {
+        var results = new string[originalTexts.Count];
+        var lines = rawContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var parts = line.Split("|||", 2, StringSplitOptions.None);
+            if (parts.Length == 2
+                && int.TryParse(parts[0].Trim(), out int idx)
+                && idx >= 1 && idx <= originalTexts.Count)
+            {
+                results[idx - 1] = parts[1].Trim();
+            }
+        }
+
+        // 파싱 실패한 항목은 원문 유지
+        for (int i = 0; i < results.Length; i++)
+        {
+            if (string.IsNullOrEmpty(results[i]))
+                results[i] = originalTexts[i];
+        }
+
+        return results;
+    }
+
+    /// <inheritdoc/>
     public Task<IReadOnlyList<string>> GetSupportedLanguagesAsync(
         CancellationToken cancellationToken = default)
     {

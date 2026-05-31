@@ -44,6 +44,16 @@ public sealed class TranslatorSelector : ITranslator
         return await target.TranslateAsync(text, targetLanguage, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<string>> TranslateBatchAsync(
+        IReadOnlyList<string> texts,
+        string targetLanguage,
+        CancellationToken cancellationToken = default)
+    {
+        var target = await SelectAsync(cancellationToken);
+        _logger.LogDebug("배치 번역 엔진 선택: {Type}, 텍스트 수={Count}", target.GetType().Name, texts?.Count ?? 0);
+        return await target.TranslateBatchAsync(texts!, targetLanguage, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<string>> GetSupportedLanguagesAsync(
         CancellationToken cancellationToken = default)
     {
