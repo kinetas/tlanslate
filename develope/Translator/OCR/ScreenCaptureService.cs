@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Translator.Core.Interfaces;
 using Translator.Core.Models;
+using Region = Translator.Core.Models.Region;
 
 namespace Translator.OCR;
 

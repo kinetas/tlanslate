@@ -12,7 +12,11 @@ public sealed class RelayCommand : ICommand
     private bool _isExecuting;
 
     /// <inheritdoc />
-    public event EventHandler? CanExecuteChanged;
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
 
     /// <summary>
     /// 동기 액션으로 RelayCommand를 생성한다.
@@ -56,5 +60,5 @@ public sealed class RelayCommand : ICommand
 
     /// <summary>CanExecuteChanged 이벤트를 수동으로 발생시킨다.</summary>
     public void RaiseCanExecuteChanged()
-        => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        => CommandManager.InvalidateRequerySuggested();
 }

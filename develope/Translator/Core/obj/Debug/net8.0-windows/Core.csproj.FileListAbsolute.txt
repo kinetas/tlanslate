@@ -1,0 +1,13 @@
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.csproj.AssemblyReference.cache
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.GeneratedMSBuildEditorConfig.editorconfig
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.AssemblyInfoInputs.cache
+E:\tl\develope\Translator\Core\bin\Debug\net8.0-windows\Translator.Core.deps.json
+E:\tl\develope\Translator\Core\bin\Debug\net8.0-windows\Translator.Core.dll
+E:\tl\develope\Translator\Core\bin\Debug\net8.0-windows\Translator.Core.pdb
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.AssemblyInfo.cs
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.csproj.CoreCompileInputs.cache
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Core.sourcelink.json
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Translator.Core.dll
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\refint\Translator.Core.dll
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\Translator.Core.pdb
+E:\tl\develope\Translator\Core\obj\Debug\net8.0-windows\ref\Translator.Core.dll

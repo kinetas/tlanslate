@@ -1,8 +1,11 @@
 using System.Drawing;
+using System.IO;
 using Microsoft.Extensions.Logging;
 using PaddleOCRSharp;
 using Translator.Core.Interfaces;
 using Translator.Core.Models;
+using OCRResult = Translator.Core.Models.OCRResult;
+using Region = Translator.Core.Models.Region;
 
 namespace Translator.OCR;
 
@@ -42,10 +45,22 @@ public sealed class PaddleOcrProvider : IOcrProvider, IDisposable
 
         try
         {
-            var config = new OCRModelConfig();
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var modelDir = Path.Combine(baseDir, "inference");
+
+            var config = new OCRModelConfig
+            {
+                det_infer = Path.Combine(modelDir, "ch_PP-OCRv3_det_infer"),
+                rec_infer = Path.Combine(modelDir, "ch_PP-OCRv3_rec_infer"),
+                cls_infer = Path.Combine(modelDir, "ch_ppocr_mobile_v2.0_cls_infer"),
+                keys       = Path.Combine(modelDir, "ppocr_keys.txt")
+            };
+
+            _logger.LogInformation("PaddleOCR 모델 경로: {Path}", modelDir);
+
             var parameter = new OCRParameter
             {
-                use_angle_cls = true,
+                use_angle_cls = false,
                 use_gpu = false
             };
 
@@ -177,7 +192,7 @@ public sealed class PaddleOcrProvider : IOcrProvider, IDisposable
     /// <summary>
     /// PaddleOCR BoxPoints (4개 꼭짓점 좌표)를 Region으로 변환합니다.
     /// </summary>
-    private static Region ExtractRegionFromBoxPoints(List<System.Drawing.Point>? boxPoints)
+    private static Region ExtractRegionFromBoxPoints(List<OCRPoint>? boxPoints)
     {
         if (boxPoints is null || boxPoints.Count == 0)
             return new Region(0, 0, 0, 0);
@@ -195,10 +210,9 @@ public sealed class PaddleOcrProvider : IOcrProvider, IDisposable
     /// </summary>
     private static System.Drawing.Rectangle GetPrimaryScreenBounds()
     {
-        return new System.Drawing.Rectangle(
-            0, 0,
-            System.Windows.Forms.SystemInformation.PrimaryMonitorSize.Width,
-            System.Windows.Forms.SystemInformation.PrimaryMonitorSize.Height);
+        var w = (int)System.Windows.SystemParameters.PrimaryScreenWidth;
+        var h = (int)System.Windows.SystemParameters.PrimaryScreenHeight;
+        return new System.Drawing.Rectangle(0, 0, w, h);
     }
 
     private void EnsureEngineInitialized()

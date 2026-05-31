@@ -1,0 +1,16 @@
+E:\tl\develope\Translator\Config\bin\Debug\net8.0-windows\Translator.Config.deps.json
+E:\tl\develope\Translator\Config\bin\Debug\net8.0-windows\Translator.Config.dll
+E:\tl\develope\Translator\Config\bin\Debug\net8.0-windows\Translator.Config.pdb
+E:\tl\develope\Translator\Config\bin\Debug\net8.0-windows\Translator.Core.dll
+E:\tl\develope\Translator\Config\bin\Debug\net8.0-windows\Translator.Core.pdb
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.csproj.AssemblyReference.cache
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.GeneratedMSBuildEditorConfig.editorconfig
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.AssemblyInfoInputs.cache
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.AssemblyInfo.cs
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.csproj.CoreCompileInputs.cache
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.sourcelink.json
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Config.csproj.Up2Date
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Translator.Config.dll
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\refint\Translator.Config.dll
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\Translator.Config.pdb
+E:\tl\develope\Translator\Config\obj\Debug\net8.0-windows\ref\Translator.Config.dll

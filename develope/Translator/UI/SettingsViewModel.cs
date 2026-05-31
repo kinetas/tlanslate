@@ -286,7 +286,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            var settings = await _settingsManager.LoadAsync().ConfigureAwait(false);
+            var settings = await _settingsManager.LoadAsync();
             ApplySettings(settings);
             _logger.LogInformation("설정 로드 완료.");
         }
@@ -372,7 +372,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var settings = await _settingsManager.LoadAsync().ConfigureAwait(false);
+            var settings = await _settingsManager.LoadAsync();
             ApplyToSettings(settings);
 
             if (_apiKeyChanged && !string.IsNullOrWhiteSpace(_pendingPlainApiKey))
@@ -382,12 +382,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged, IDisposable
             }
             else if (_apiKeyChanged && string.IsNullOrWhiteSpace(_pendingPlainApiKey))
             {
-                // 빈 값 입력 시 기존 암호화 키 제거
                 settings.TranslationApi.EncryptedApiKey = string.Empty;
                 _logger.LogWarning("API Key가 비워졌습니다. 암호화 키를 삭제합니다.");
             }
 
-            await _settingsManager.SaveAsync(settings).ConfigureAwait(false);
+            await _settingsManager.SaveAsync(settings);
 
             // 메모리에서 평문 즉시 파기
             _pendingPlainApiKey = null;

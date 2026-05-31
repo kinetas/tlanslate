@@ -34,40 +34,12 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
-        // forceClose가 설정된 경우에만 실제로 닫는다
-        if (_forceClose)
-        {
-            _logger.LogInformation("메인 창 닫힘 (종료).");
-            TrayIcon.Dispose();
-            return;
-        }
-
-        // 일반 X 버튼 클릭 → 트레이로 최소화
-        e.Cancel = true;
-        Hide();
-        _logger.LogDebug("메인 창 트레이로 최소화.");
+        _logger.LogInformation("메인 창 닫힘.");
     }
 
-    // ──────────────────────────────────────────────
-    // 트레이 아이콘 이벤트
-    // ──────────────────────────────────────────────
-
-    private void TrayIcon_TrayLeftMouseDoubleClick(object sender, RoutedEventArgs e)
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        RestoreWindow();
-    }
-
-    private void TrayMenuItem_Open(object sender, RoutedEventArgs e)
-    {
-        RestoreWindow();
-    }
-
-    private void TrayMenuItem_Exit(object sender, RoutedEventArgs e)
-    {
-        _forceClose = true;
-        _logger.LogInformation("트레이 메뉴에서 종료 요청.");
-        Close();
-        Application.Current.Shutdown();
+        _logger.LogInformation("설정 버튼 Click 이벤트 발생. DataContext={Dc}", DataContext?.GetType().Name ?? "null");
     }
 
     // ──────────────────────────────────────────────

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Translator.UI"
+        xmlns:ui="clr-namespace:Translator.UI"
         mc:Ignorable="d"
         Title="설정"
         Width="640"
@@ -14,6 +15,7 @@
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel, IsDesignTimeCreatable=False}">
 
     <Window.Resources>
+        <ui:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <Style x:Key="TabItemStyle" TargetType="TabItem">
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="FontSize" Value="13" />
@@ -157,6 +159,8 @@
                         <TextBlock Text="{Binding ApiKeyStatusMessage}"
                                    Foreground="{Binding ApiKeyStatusColor}"
                                    FontSize="11"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="400"
                                    Margin="148,0,0,0" />
                     </StackPanel>
                 </ScrollViewer>

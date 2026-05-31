@@ -3,8 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:tb="http://www.hardcodet.net/taskbar"
-        xmlns:local="clr-namespace:Translator.UI.ViewModels"
+        xmlns:ui="clr-namespace:Translator.UI"
         mc:Ignorable="d"
         Title="Translator"
         Height="200"
@@ -14,8 +13,8 @@
         Closing="Window_Closing">
 
     <Window.Resources>
-        <!-- 불리언 → Visibility 변환기 -->
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- 불리언 → Visibility 변환기 (Inverse 파라미터 지원) -->
+        <ui:BoolToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- 버튼 스타일 -->
         <Style x:Key="ActionButton" TargetType="Button">
@@ -165,6 +164,7 @@
 
             <Button Style="{StaticResource ActionButton}"
                     Command="{Binding OpenSettingsCommand}"
+                    Click="SettingsButton_Click"
                     ToolTip="번역 엔진, OCR, 오버레이 설정을 변경합니다">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="⚙ " VerticalAlignment="Center"/>
@@ -208,28 +208,6 @@
             </Grid>
         </Border>
 
-        <!-- ── 시스템 트레이 아이콘 ────────────────────────────────────── -->
-        <tb:TaskbarIcon x:Name="TrayIcon"
-                        Grid.Row="0"
-                        ToolTipText="Translator — 실시간 게임 번역"
-                        IconSource="/Resources/app.ico"
-                        Visibility="Visible"
-                        TrayLeftMouseDoubleClick="TrayIcon_TrayLeftMouseDoubleClick">
-            <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="열기" Click="TrayMenuItem_Open"/>
-                    <Separator/>
-                    <MenuItem Header="번역 시작"
-                              Command="{Binding StartTranslationCommand}"/>
-                    <MenuItem Header="번역 중지"
-                              Command="{Binding StopTranslationCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="설정"
-                              Command="{Binding OpenSettingsCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="종료" Click="TrayMenuItem_Exit"/>
-                </ContextMenu>
-            </tb:TaskbarIcon.ContextMenu>
-        </tb:TaskbarIcon>
+        <!-- 시스템 트레이 아이콘은 추후 추가 -->
     </Grid>
 </Window>

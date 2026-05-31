@@ -9,6 +9,7 @@ using Translator.OCR;
 using Translator.Overlay;
 using Translator.Translation;
 using Translator.UI;
+using Translator.UI.ViewModels;
 
 namespace Translator;
 
@@ -28,7 +29,7 @@ public partial class App : Application
     public static IServiceProvider Services => ((App)Current)._serviceProvider
         ?? throw new InvalidOperationException("DI 컨테이너가 초기화되지 않았습니다.");
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -39,10 +40,10 @@ public partial class App : Application
 
         try
         {
-            // 1단계: 설정을 먼저 로드하여 DI 팩토리 패턴에 사용
+            // 1단계: 설정 로드 (시작 시 동기 처리 — 파일 크기 작음)
             var bootstrapServices = BuildBootstrapServices();
             var settingsManager = bootstrapServices.GetRequiredService<AppSettingsManager>();
-            var settings = await settingsManager.LoadAsync().ConfigureAwait(false);
+            var settings = settingsManager.LoadAsync().GetAwaiter().GetResult();
 
             // 2단계: 완전한 DI 컨테이너 구성
             var services = new ServiceCollection();
@@ -131,30 +132,13 @@ public partial class App : Application
         services.AddSingleton(settings.General);
         services.AddSingleton<AppSettingsManager>();
 
-        // ── ITranslator 팩토리 패턴 (설정값 기반 런타임 선택) ────────────────
-        services.AddTransient<OpenAiTranslator>();
-        services.AddTransient<DeepLTranslator>();
-        services.AddTransient<OllamaTranslator>();
-        services.AddTransient<LmStudioTranslator>();
-
-        services.AddSingleton<ITranslator>(sp =>
-        {
-            var provider = settings.TranslationApi.Provider?.Trim() ?? string.Empty;
-            var logger = sp.GetRequiredService<ILogger<App>>();
-
-            ITranslator translator = provider switch
-            {
-                "DeepL" => sp.GetRequiredService<DeepLTranslator>(),
-                "Ollama" => sp.GetRequiredService<OllamaTranslator>(),
-                "LMStudio" => sp.GetRequiredService<LmStudioTranslator>(),
-                _ => sp.GetRequiredService<OpenAiTranslator>()  // 기본값: OpenAI
-            };
-
-            logger.LogInformation("ITranslator 팩토리: {Provider} → {Type}",
-                provider, translator.GetType().Name);
-
-            return translator;
-        });
+        // ── ITranslator — 설정 변경 즉시 반영되는 동적 선택기 ───────────────
+        services.AddHttpClient<OpenAiTranslator>();
+        services.AddHttpClient<DeepLTranslator>();
+        services.AddHttpClient<OllamaTranslator>();
+        services.AddHttpClient<LmStudioTranslator>();
+        services.AddSingleton<TranslatorSelector>();
+        services.AddSingleton<ITranslator>(sp => sp.GetRequiredService<TranslatorSelector>());
 
         // ── OCR / 화면 캡처 ───────────────────────────────────────────────────
         services.AddSingleton<IScreenCaptureService, ScreenCaptureService>();

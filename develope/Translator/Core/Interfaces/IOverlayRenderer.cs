@@ -28,4 +28,9 @@ public interface IOverlayRenderer
     /// 현재 표시 중인 오버레이 아이템 목록을 반환합니다.
     /// </summary>
     IReadOnlyList<OverlayItem> GetActiveOverlays();
+
+    /// <summary>
+    /// OCR 결과와 번역 텍스트 쌍을 일괄 렌더링합니다.
+    /// </summary>
+    void RenderTranslations(IReadOnlyList<(OCRResult Source, string Translation)> items);
 }

@@ -4,24 +4,22 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
     <RootNamespace>Translator</RootNamespace>
     <AssemblyName>Translator</AssemblyName>
     <Platforms>x64</Platforms>
-    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <!-- NuGet 패키지 -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
-    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.1.0" />
   </ItemGroup>
 
   <!-- 프로젝트 참조 -->
@@ -32,6 +30,21 @@
     <ProjectReference Include="Translation\Translation.csproj" />
     <ProjectReference Include="Overlay\Overlay.csproj" />
     <ProjectReference Include="UI\UI.csproj" />
+  </ItemGroup>
+
+  <!-- 하위 프로젝트 소스 중복 컴파일 방지 -->
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+    <Compile Remove="Config\**\*.cs" />
+    <Compile Remove="OCR\**\*.cs" />
+    <Compile Remove="Translation\**\*.cs" />
+    <Compile Remove="Overlay\**\*.cs" />
+    <Compile Remove="UI\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Remove="Overlay\**\*.xaml" />
+    <Page Remove="UI\**\*.xaml" />
   </ItemGroup>
 
   <!-- 리소스 -->

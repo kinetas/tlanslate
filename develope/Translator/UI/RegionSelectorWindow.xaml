@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Translator.UI"
+        xmlns:ui="clr-namespace:Translator.UI"
         mc:Ignorable="d"
         Title="영역 선택"
         WindowStyle="None"
@@ -13,6 +14,10 @@
         Topmost="True"
         Cursor="Cross"
         d:DataContext="{d:DesignInstance Type=vm:RegionSelectorViewModel, IsDesignTimeCreatable=False}">
+
+    <Window.Resources>
+        <ui:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
 
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
