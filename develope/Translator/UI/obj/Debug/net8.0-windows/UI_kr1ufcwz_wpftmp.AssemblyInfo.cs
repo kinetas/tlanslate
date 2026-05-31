@@ -10,12 +10,12 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("Translator.Core")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("Translator.UI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3630c660d21389afb139a96af66dcf80e8b3df7f")]
-[assembly: System.Reflection.AssemblyProductAttribute("Translator.Core")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Translator.Core")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6eb828f1b77ec0b524293154dfa7806fcbb33cc1")]
+[assembly: System.Reflection.AssemblyProductAttribute("Translator.UI")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Translator.UI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
